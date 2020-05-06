@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "public_facing_applications"
+		},
+		{
+			"path": "vpc_shared_services"
+		}
+	],
+	"settings": {}
+}
