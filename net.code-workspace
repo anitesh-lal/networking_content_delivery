@@ -7,7 +7,10 @@
 			"path": "public_facing_applications"
 		},
 		{
-			"path": "vpc_shared_services"
+			"path": "vpc_shared_services_vpg"
+		},
+		{
+			"path": "vpc_shared_services_tg"
 		}
 	],
 	"settings": {}
