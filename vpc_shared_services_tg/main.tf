@@ -22,15 +22,13 @@ resource "aws_vpc" "app_vpc" {
 }
 
 # =============================================
-#  VPN GATEWAY
+#  TRANSIT GATEWAY
 # =============================================
 
-resource "aws_vpn_gateway" "vpn_gateway" {
-  vpc_id            = aws_vpc.app_vpc.id
-  availability_zone = data.aws_availability_zones.available.names[1]
-
+resource "aws_ec2_transit_gateway" "transit_gateway" {
+  description = "${local.app_name} Transit Gateway"
   tags = {
-    Name              = "${local.app_name}-VPN-GW"
+    Name              = "${local.app_name}-TGW"
     Service           = local.service_name
     Owner             = local.owner
     Environment       = local.environment
@@ -40,13 +38,66 @@ resource "aws_vpn_gateway" "vpn_gateway" {
 }
 
 # =============================================
+#  TRANSIT GATEWAY TO VPC ATTACHMENT
+# =============================================
+
+resource "aws_ec2_transit_gateway_vpc_attachment" "tg_to_vpc" {
+  subnet_ids = [aws_subnet.app_vpc_priv_sub1.id,
+    aws_subnet.app_vpc_priv_sub2.id,
+    aws_subnet.app_vpc_priv_sub3.id,
+    aws_subnet.app_vpc_priv_sub4.id,
+    aws_subnet.app_vpc_priv_sub5.id,
+    aws_subnet.app_vpc_priv_sub6.id,
+    aws_subnet.app_vpc_priv_sub7.id,
+  aws_subnet.app_vpc_priv_sub8.id]
+  transit_gateway_id = aws_ec2_transit_gateway.transit_gateway.id
+  vpc_id             = aws_vpc.app_vpc.id
+}
+
+# =============================================
+#  TRANSIT GATEWAY ROUTE TABLE
+# =============================================
+
+resource "aws_ec2_transit_gateway_route_table" "tg_rtb" {
+  transit_gateway_id = aws_ec2_transit_gateway.transit_gateway.id
+}
+
+# =============================================
+#  TRANSIT GATEWAY ROUTES
+# =============================================
+
+resource "aws_ec2_transit_gateway_route" "tg_routes" {
+  destination_cidr_block         = var.datacenter
+  transit_gateway_attachment_id  = aws_ec2_transit_gateway_vpc_attachment.tg_to_vpc.id
+  transit_gateway_route_table_id = aws_ec2_transit_gateway.transit_gateway.association_default_route_table_id
+}
+
+# =============================================
+#  TRANSIT GATEWAY ROUTE TABLE ASSOCIATION
+# =============================================
+
+resource "aws_ec2_transit_gateway_route_table_association" "tg_rtb_assoc" {
+  transit_gateway_attachment_id  = aws_ec2_transit_gateway_vpc_attachment.tg_to_vpc.id
+  transit_gateway_route_table_id = aws_ec2_transit_gateway_route_table.tg_rtb.id
+}
+
+# =============================================
+#  TRANSIT GATEWAY ROUTE TABLE PROPAGATION
+# =============================================
+
+resource "aws_ec2_transit_gateway_route_table_propagation" "tg_rtb_prop" {
+  transit_gateway_attachment_id  = aws_ec2_transit_gateway_vpc_attachment.tg_to_vpc.id
+  transit_gateway_route_table_id = aws_ec2_transit_gateway_route_table.tg_rtb.id
+}
+
+# =============================================
 #  CUSTOMER GATEWAY
 # =============================================
 
 resource "aws_customer_gateway" "customer_gateway" {
-  bgp_asn = 65000
-  ip_address = "127.0.0.1" // This static IPaddr needs to come after device or software installation on our datacenter/network.
-  type = "ipsec.1"
+  bgp_asn    = 65000
+  ip_address = "127.0.0.1" // --public-ip <value>
+  type       = "ipsec.1"
 
   tags = {
     Name              = "${local.app_name}-main-customer-gateway"
@@ -62,10 +113,14 @@ resource "aws_customer_gateway" "customer_gateway" {
 # =============================================
 
 resource "aws_vpn_connection" "main" {
-  vpn_gateway_id      = aws_vpn_gateway.vpn_gateway.id  // AWS side of information
-  customer_gateway_id = aws_customer_gateway.customer_gateway.id // Our network side of information
+  transit_gateway_id  = aws_ec2_transit_gateway.transit_gateway.id // AWS side of information
+  customer_gateway_id = aws_customer_gateway.customer_gateway.id   // Our network side of information
   type                = "ipsec.1"
   static_routes_only  = true
+  #tunnel1_inside_cidr = 
+  #tunnel2_inside_cidr = 
+  #tunnel1_preshared_key = 
+  #tunnel2_preshared_key =
 }
 
 # =============================================
@@ -73,7 +128,7 @@ resource "aws_vpn_connection" "main" {
 # =============================================
 
 resource "aws_vpn_connection_route" "datacenter" {
-  destination_cidr_block = "10.192.0.0/24"  // IPaddr of our datacenter/network.
+  destination_cidr_block = var.datacenter // IPaddr of our datacenter/network.
   vpn_connection_id      = aws_vpn_connection.main.id
 }
 
@@ -84,10 +139,10 @@ resource "aws_vpn_connection_route" "datacenter" {
 resource "aws_default_route_table" "app_vpc_priv_rtb" {
   default_route_table_id = aws_vpc.app_vpc.default_route_table_id
 
-  route {
-    cidr_block = var.localip
-    gateway_id = aws_vpn_gateway.vpn_gateway.id
-  }
+  #route {
+  #  cidr_block = var.localip
+  #  gateway_id = aws_ec2_transit_gateway.transit_gateway.id
+  #}
 
   tags = {
     Name              = "${local.app_name}-VPC-PRIV-RTB"

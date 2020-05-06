@@ -48,11 +48,12 @@ variable "vpc_cidr" {
   description = "VPC IP block"
   type        = string
 }
-
 variable "cidrs" {
   type = map
 }
-
 variable "localip" {
-
+  type = string
+}
+variable "datacenter" {
+  type = string
 }

@@ -54,5 +54,10 @@ variable "cidrs" {
 }
 
 variable "localip" {
-
+  type = string
 }
+
+variable "datacenter" {
+  type = string
+}
+

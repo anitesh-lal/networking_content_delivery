@@ -44,9 +44,9 @@ resource "aws_vpn_gateway" "vpn_gateway" {
 # =============================================
 
 resource "aws_customer_gateway" "customer_gateway" {
-  bgp_asn = 65000
+  bgp_asn    = 65000
   ip_address = "127.0.0.1" // This static IPaddr needs to come after device or software installation on our datacenter/network.
-  type = "ipsec.1"
+  type       = "ipsec.1"
 
   tags = {
     Name              = "${local.app_name}-main-customer-gateway"
@@ -62,10 +62,14 @@ resource "aws_customer_gateway" "customer_gateway" {
 # =============================================
 
 resource "aws_vpn_connection" "main" {
-  vpn_gateway_id      = aws_vpn_gateway.vpn_gateway.id  // AWS side of information
+  vpn_gateway_id      = aws_vpn_gateway.vpn_gateway.id           // AWS side of information
   customer_gateway_id = aws_customer_gateway.customer_gateway.id // Our network side of information
   type                = "ipsec.1"
   static_routes_only  = true
+  #tunnel1_inside_cidr = 
+  #tunnel2_inside_cidr = 
+  #tunnel1_preshared_key = 
+  #tunnel2_preshared_key =
 }
 
 # =============================================
@@ -73,7 +77,7 @@ resource "aws_vpn_connection" "main" {
 # =============================================
 
 resource "aws_vpn_connection_route" "datacenter" {
-  destination_cidr_block = "10.192.0.0/24"  // IPaddr of our datacenter/network.
+  destination_cidr_block = var.datacenter // IPaddr of our datacenter/network.
   vpn_connection_id      = aws_vpn_connection.main.id
 }
 
