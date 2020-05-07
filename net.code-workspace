@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "vpc_shared_services_tg"
+		},
+		{
+			"path": "public_facing_applications_with_3_bcknd_db_subnets"
 		}
 	],
 	"settings": {}
